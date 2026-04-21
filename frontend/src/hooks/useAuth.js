@@ -1,12 +1,4 @@
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+// ✅ Doit importer le hook avec le MÊME nom que l'export dans AuthContext.jsx
+import { useAuth } from '../context/AuthContext'
 
-const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
-
-export default useAuth;
+export { useAuth }

@@ -1,69 +1,40 @@
-from app.schemas import user
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse
-from app.utils.security import verify_password, get_password_hash, create_access_token
-from sqlalchemy.exc import IntegrityError
+from app.schemas.auth import LoginRequest, Token
+from app.utils.security import verify_password, create_access_token
+from datetime import timedelta
+from app.config import settings
 
-router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/login", response_model=TokenResponse)
+
+@router.post("/login", response_model=Token)
 def login(login_request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == login_request.email).first()
     
-    if not user or not verify_password(login_request.password, user.hashed_password):
+    if not user or not verify_password(login_request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-     # Convertir le rôle en string (ex: UserRole.ADMIN -> "ADMIN")
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id), "email": user.email, "role": user.role.nom}, 
+        expires_delta=access_token_expires
+    )
     
-    return TokenResponse(
+    return Token(
         access_token=access_token,
         token_type="bearer",
-        user=UserResponse(
-            id=user.id,
-            nom=user.nom,
-            email=user.email,
-            telephone=user.telephone,
-            role=user.role,
-            created_at=user.created_at
-        )
+        user={
+            "id": user.id,
+            "nom": user.nom,
+            "email": user.email,
+            "role": user.role.nom,
+            "role_id": user.role_id
+        }
     )
-
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(register_request: RegisterRequest, db: Session = Depends(get_db)):
-    try:
-        hashed_password = get_password_hash(register_request.password)
-        
-        new_user = User(
-            nom=register_request.nom,
-            email=register_request.email,
-            telephone=register_request.telephone,
-            hashed_password=hashed_password,
-            role=register_request.role
-        )
-        
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        
-        return UserResponse(
-            id=new_user.id,
-            nom=new_user.nom,
-            email=new_user.email,
-            telephone=new_user.telephone,
-            role=new_user.role,
-            created_at=new_user.created_at
-        )
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Un compte avec cet email existe déjà"
-        )

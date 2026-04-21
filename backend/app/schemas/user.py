@@ -1,32 +1,30 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
 
 class UserBase(BaseModel):
-    nom: str = Field(..., min_length=2, max_length=100)
+    nom: str
     email: EmailStr
-    telephone: Optional[str] = Field(None, max_length=20)
-    role: str = Field(default="client", pattern="^(client|serveur|cuisinier|caissier|livreur|magasinier|manager|admin)$")
+    telephone: Optional[str] = None
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
+    password: str
+    role_id: int
 
 
 class UserUpdate(BaseModel):
-    nom: Optional[str] = Field(None, min_length=2, max_length=100)
+    nom: Optional[str] = None
     email: Optional[EmailStr] = None
-    telephone: Optional[str] = Field(None, max_length=20)
-    role: Optional[str] = Field(None, pattern="^(client|serveur|cuisinier|caissier|livreur|magasinier|manager|admin)$")
-    password: Optional[str] = Field(None, min_length=6)
-    
+    telephone: Optional[str] = None
+    password: Optional[str] = None
 
 
 class UserResponse(UserBase):
     id: int
+    role_id: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
