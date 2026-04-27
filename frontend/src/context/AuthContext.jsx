@@ -1,169 +1,129 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import authService from '../services/authService';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react'
+import axios from 'axios'
+import authService from '../services/authService'
 
-// Export du contexte
-export const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(authService.getToken());
+  const [user, setUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false)
 
+  // ✅ Fonction pour initialiser les headers axios (réutilisable)
+  const setAuthHeaders = useCallback((token) => {
+    if (token) {
+      const cleanToken = token.trim()
+      axios.defaults.headers.common['Authorization'] = `Bearer ${cleanToken}`
+      // Aussi mettre à jour l'instance personnalisée si elle existe
+      if (authService.setToken) {
+        authService.setToken(cleanToken)
+      }
+    } else {
+      delete axios.defaults.headers.common['Authorization']
+      if (authService.setToken) {
+        authService.setToken(null)
+      }
+    }
+  }, [])
+
+  // ✅ Initialisation au montage : lecture localStorage + validation token
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (authService.isAuthenticated()) {
-          // Récupérer l'utilisateur depuis localStorage d'abord
-          const storedUser = authService.getStoredUser();
-          if (storedUser) {
-            setUser(storedUser);
-          }
+        const token = localStorage.getItem('token')
+        const userData = localStorage.getItem('user')
+        
+        if (token && userData) {
+          // Parser les données utilisateur avec gestion d'erreur
+          const parsedUser = JSON.parse(userData)
           
-          // Puis vérifier avec l'API (optionnel)
-          try {
-            const freshUser = await authService.getCurrentUser();
-            if (freshUser) {
-              setUser(freshUser);
-              authService.setStoredUser(freshUser);
-            }
-          } catch (apiError) {
-            console.warn('Impossible de vérifier l\'utilisateur avec l\'API:', apiError);
-            // Si l'API échoue mais qu'on a un utilisateur stocké, on le garde
-          }
+          // Optionnel : valider le token côté backend avant de l'accepter
+          // await authService.validateToken(token) // Si vous avez cet endpoint
+          
+          setUser(parsedUser)
+          setAuthHeaders(token)
         }
       } catch (error) {
-        console.error('Erreur lors de l\'initialisation de l\'auth:', error);
+        console.error('Erreur initialisation auth:', error)
+        // Nettoyer les données corrompues
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        setAuthHeaders(null)
       } finally {
-        setLoading(false);
+        setIsLoading(false)
+        setIsInitialized(true)
       }
-    };
+    }
+    
+    initAuth()
+  }, [setAuthHeaders])
 
-    initAuth();
-  }, []);
-
+  // ✅ Fonction de connexion - NE REDIRIGE PAS (App.jsx s'en charge)
   const login = async (email, password) => {
     try {
-      setLoading(true);
-      const response = await authService.login(email, password);
-      const { access_token, user: userData } = response;
+      const response = await authService.login(email, password)
+      const cleanToken = response.access_token?.trim()
       
-      setToken(access_token);
-      setUser(userData);
-      
-      return { success: true, user: userData };
-    } catch (error) {
-      console.error('Erreur de connexion:', error);
-      let errorMessage = 'Email ou mot de passe incorrect';
-      
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      if (!cleanToken || !response.user) {
+        throw new Error('Réponse d\'authentification invalide')
       }
       
-      return { 
-        success: false, 
-        error: errorMessage
-      };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const register = async (userData) => {
-    try {
-      setLoading(true);
-      const response = await authService.register(userData);
-      return { success: true, data: response };
-    } catch (error) {
-      console.error('Erreur d\'inscription:', error);
-      let errorMessage = "Erreur d'inscription";
+      // 1. Stocker dans localStorage (synchrone)
+      localStorage.setItem('token', cleanToken)
+      localStorage.setItem('user', JSON.stringify(response.user))
       
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
+      // 2. Mettre à jour les headers axios IMMÉDIATEMENT
+      setAuthHeaders(cleanToken)
       
-      return { 
-        success: false, 
-        error: errorMessage
-      };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Version alternative avec paramètres individuels
-  const registerWithParams = async (nom, email, telephone, password, role = 'client') => {
-    return register({
-      nom,
-      email,
-      telephone,
-      password,
-      role
-    });
-  };
-
-  const logout = () => {
-    authService.logout();
-    setToken(null);
-    setUser(null);
-  };
-
-  const isAuthenticated = () => {
-    return authService.isAuthenticated() && !!user;
-  };
-
-  const hasRole = (role) => {
-    return authService.hasRole(role);
-  };
-
-  const updateUser = (updatedData) => {
-    const newUser = { ...user, ...updatedData };
-    setUser(newUser);
-    authService.setStoredUser(newUser);
-  };
-
-  const refreshUser = async () => {
-    try {
-      const freshUser = await authService.getCurrentUser();
-      if (freshUser) {
-        setUser(freshUser);
-        authService.setStoredUser(freshUser);
-      }
-      return freshUser;
+      // 3. Mettre à jour l'état React (asynchrone, mais les headers sont déjà prêts)
+      setUser(response.user)
+      
+      return response
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement:', error);
-      return null;
+      // Nettoyer en cas d'échec pour éviter les sessions fantômes
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      setAuthHeaders(null)
+      throw error
     }
-  };
+  }
 
-  const value = {
+  // ✅ Fonction de déconnexion - NETTOYAGE COMPLET
+  const logout = useCallback(() => {
+    // 1. Supprimer du localStorage
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    
+    // 2. Supprimer les headers axios
+    setAuthHeaders(null)
+    
+    // 3. Réinitialiser l'état React
+    setUser(null)
+    
+    // Note : La redirection vers /login est gérée par App.jsx via ProtectedRoute
+  }, [setAuthHeaders])
+
+  // ✅ Valeur du contexte mémorisée pour éviter les re-renders inutiles
+  const contextValue = React.useMemo(() => ({
     user,
-    loading,
-    token,
+    isLoading,
+    isInitialized,
     login,
-    register,
-    registerWithParams,
-    logout,
-    isAuthenticated,
-    hasRole,
-    updateUser,
-    refreshUser
-  };
+    logout
+  }), [user, isLoading, isInitialized, login, logout])
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
+
+// ✅ Hook personnalisé avec nom cohérent
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}

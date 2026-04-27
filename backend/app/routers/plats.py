@@ -1,179 +1,82 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from app.database import get_db
+from app.models.plat import Plat
+from app.schemas.plat import PlatResponse, PlatCreate, PlatUpdate
+from app.dependencies import get_current_user
 
-from ..database import get_db
-from ..models.plat import Plat
-from ..models.user import User
-from ..dependencies import get_current_user, get_current_admin_user
-from ..schemas.plat import PlatCreate, PlatUpdate, PlatResponse
+router = APIRouter(prefix="/plats", tags=["Plats"])
 
-router = APIRouter(prefix="/api/plats", tags=["Plats"])
-
-
-# ============== ROUTES PUBLIQUES (accessibles à tous) ==============
 
 @router.get("/", response_model=List[PlatResponse])
-async def get_all_plats(
+def get_plats(
     categorie: Optional[str] = None,
-    search: Optional[str] = None,
-    disponibilite: Optional[bool] = None,
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
+    disponible: Optional[bool] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
-    """
-    Récupère tous les plats avec filtres optionnels
-    """
     query = db.query(Plat)
     
     if categorie:
         query = query.filter(Plat.categorie == categorie)
+    if disponible is not None:
+        query = query.filter(Plat.disponible == disponible)
     
-    if disponibilite is not None:
-        query = query.filter(Plat.disponibilite == disponibilite)
-    
-    if search:
-        query = query.filter(
-            (Plat.nom.contains(search)) | (Plat.description.contains(search))
-        )
-    
-    plats = query.offset(skip).limit(limit).all()
-    return plats
+    return query.order_by(Plat.categorie, Plat.nom).all()
 
 
 @router.get("/{plat_id}", response_model=PlatResponse)
-async def get_plat_by_id(plat_id: int, db: Session = Depends(get_db)):
-    """
-    Récupère un plat par son ID
-    """
+def get_plat(plat_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     plat = db.query(Plat).filter(Plat.id == plat_id).first()
     if not plat:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Plat avec l'ID {plat_id} non trouvé"
-        )
+        raise HTTPException(status_code=404, detail="Plat not found")
     return plat
 
 
-@router.get("/categories/list")
-async def get_categories(db: Session = Depends(get_db)):
-    """
-    Récupère la liste des catégories disponibles
-    """
-    categories = db.query(Plat.categorie).distinct().all()
-    return {"categories": [c[0] for c in categories]}
-
-
-# ============== ROUTES ADMIN (protégées) ==============
-
-@router.post("/", response_model=PlatResponse, status_code=status.HTTP_201_CREATED)
-async def create_plat(
-    plat_data: PlatCreate,
+@router.post("/", response_model=PlatResponse)
+def create_plat(
+    plat: PlatCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user=Depends(get_current_user)
 ):
-    """
-    Crée un nouveau plat (admin seulement)
-    """
-    # Vérifier si un plat avec le même nom existe déjà
-    existing_plat = db.query(Plat).filter(Plat.nom == plat_data.nom).first()
-    if existing_plat:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Un plat avec le nom '{plat_data.nom}' existe déjà"
-        )
-    
-    new_plat = Plat(
-        nom=plat_data.nom,
-        description=plat_data.description,
-        prix=plat_data.prix,
-        categorie=plat_data.categorie,
-        image_url=plat_data.image_url,
-        temps_preparation=plat_data.temps_preparation,
-        disponibilite=plat_data.disponibilite,
-        stock_disponible=plat_data.stock_disponible,
-        created_at=datetime.utcnow()
-    )
-    
-    db.add(new_plat)
+    db_plat = Plat(**plat.model_dump())
+    db.add(db_plat)
     db.commit()
-    db.refresh(new_plat)
-    
-    return new_plat
+    db.refresh(db_plat)
+    return db_plat
 
 
 @router.put("/{plat_id}", response_model=PlatResponse)
-async def update_plat(
+def update_plat(
     plat_id: int,
-    plat_data: PlatUpdate,
+    plat_update: PlatUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user=Depends(get_current_user)
 ):
-    """
-    Modifie un plat existant (admin seulement)
-    """
-    plat = db.query(Plat).filter(Plat.id == plat_id).first()
-    if not plat:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Plat avec l'ID {plat_id} non trouvé"
-        )
+    db_plat = db.query(Plat).filter(Plat.id == plat_id).first()
+    if not db_plat:
+        raise HTTPException(status_code=404, detail="Plat not found")
     
-    # Mise à jour des champs
-    for field, value in plat_data.dict(exclude_unset=True).items():
-        setattr(plat, field, value)
-    
-    plat.updated_at = datetime.utcnow()
+    update_data = plat_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_plat, key, value)
     
     db.commit()
-    db.refresh(plat)
-    
-    return plat
+    db.refresh(db_plat)
+    return db_plat
 
 
-@router.delete("/{plat_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_plat(
+@router.delete("/{plat_id}")
+def delete_plat(
     plat_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user=Depends(get_current_user)
 ):
-    """
-    Supprime un plat (admin seulement)
-    """
-    plat = db.query(Plat).filter(Plat.id == plat_id).first()
-    if not plat:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Plat avec l'ID {plat_id} non trouvé"
-        )
+    db_plat = db.query(Plat).filter(Plat.id == plat_id).first()
+    if not db_plat:
+        raise HTTPException(status_code=404, detail="Plat not found")
     
-    db.delete(plat)
+    db.delete(db_plat)
     db.commit()
-    
-    return None
-
-
-@router.patch("/{plat_id}/disponibilite")
-async def toggle_disponibilite(
-    plat_id: int,
-    disponibilite: bool,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
-):
-    """
-    Active/désactive la disponibilité d'un plat
-    """
-    plat = db.query(Plat).filter(Plat.id == plat_id).first()
-    if not plat:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Plat avec l'ID {plat_id} non trouvé"
-        )
-    
-    plat.disponibilite = disponibilite
-    plat.updated_at = datetime.utcnow()
-    db.commit()
-    
-    return {"success": True, "disponibilite": disponibilite}
+    return {"message": "Plat deleted successfully"}

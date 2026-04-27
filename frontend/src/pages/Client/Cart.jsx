@@ -1,146 +1,128 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
-import useCart from '../../hooks/useCart';
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Navbar from '../../components/Layout/Navbar'
+import Button from '../../components/Common/Button'
+import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react'
 
 const Cart = () => {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const [cart, setCart] = useState([])
+  const navigate = useNavigate()
 
-  if (cart.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-main py-12">
-        <div className="container mx-auto px-4">
-          <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-8 text-center">
-            <ShoppingBag className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Votre panier est vide
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">
-              Ajoutez des plats à votre panier pour passer commande
-            </p>
-            <Link
-              to="/menu"
-              className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Voir le menu
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    loadCart()
+    const handleCartUpdate = () => loadCart()
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate)
+  }, [])
+
+  const loadCart = () => {
+    const cartData = JSON.parse(localStorage.getItem('cart') || '[]')
+    setCart(cartData)
+  }
+
+  const updateQuantity = (platId, delta) => {
+    const updatedCart = cart.map(item => {
+      if (item.plat_id === platId) {
+        return { ...item, quantite: Math.max(1, item.quantite + delta) }
+      }
+      return item
+    })
+    localStorage.setItem('cart', JSON.stringify(updatedCart))
+    setCart(updatedCart)
+    window.dispatchEvent(new Event('cartUpdated'))
+  }
+
+  const removeFromCart = (platId) => {
+    const updatedCart = cart.filter(item => item.plat_id !== platId)
+    localStorage.setItem('cart', JSON.stringify(updatedCart))
+    setCart(updatedCart)
+    window.dispatchEvent(new Event('cartUpdated'))
+  }
+
+  const calculateTotal = () => {
+    return cart.reduce((total, item) => total + (item.prix_unitaire * item.quantite), 0)
+  }
+
+  const handleOrder = () => {
+    alert('Commande passée avec succès ! (Simulation)')
+    localStorage.removeItem('cart')
+    setCart([])
+    navigate('/menu')
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-main py-12">
-      <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Mon Panier</h1>
-        
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Liste des articles */}
-          <div className="flex-1">
-            <div className="bg-white dark:bg-dark-card rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold">Articles ({cart.length})</h2>
-              </div>
-              
-              {cart.map((item) => (
-                <div key={item.id} className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-4">
-                    {/* Image */}
-                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.nom} className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <ShoppingBag className="w-8 h-8 text-gray-400" />
-                      )}
-                    </div>
-                    
-                    {/* Infos */}
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800 dark:text-white">{item.nom}</h3>
-                      <p className="text-primary font-bold">{item.prix.toFixed(2)} €</p>
-                    </div>
-                    
-                    {/* Quantité */}
-                    <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Votre Panier</h1>
+
+        {cart.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <ShoppingCart className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-600 mb-4">Votre panier est vide</p>
+            <Button variant="primary" onClick={() => navigate('/menu')}>
+              Retour au menu
+            </Button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-6 space-y-4">
+              {cart.map(item => (
+                <div key={item.plat_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900">{item.nom}</h3>
+                    <p className="text-gray-600">{item.prix_unitaire.toFixed(2)} €</p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantite - 1)}
-                        className="p-1 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200"
+                        onClick={() => updateQuantity(item.plat_id, -1)}
+                        className="p-1 rounded hover:bg-gray-200"
                       >
-                        <Minus className="w-4 h-4" />
+                        <Minus className="h-4 w-4" />
                       </button>
-                      <span className="w-8 text-center">{item.quantite}</span>
+                      <span className="font-medium w-8 text-center">{item.quantite}</span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantite + 1)}
-                        className="p-1 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200"
+                        onClick={() => updateQuantity(item.plat_id, 1)}
+                        className="p-1 rounded hover:bg-gray-200"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="h-4 w-4" />
                       </button>
                     </div>
                     
-                    {/* Prix total */}
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-800 dark:text-white">
-                        {(item.prix * item.quantite).toFixed(2)} €
-                      </p>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.plat_id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
-            
-            <button
-              onClick={clearCart}
-              className="mt-4 text-red-500 hover:text-red-700 flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Vider le panier
-            </button>
-          </div>
-          
-          {/* Résumé */}
-          <div className="lg:w-96">
-            <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold mb-4">Résumé de la commande</h2>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between">
-                  <span>Sous-total</span>
-                  <span>{getCartTotal().toFixed(2)} €</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Frais de livraison</span>
-                  <span>2.50 €</span>
-                </div>
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">{(getCartTotal() + 2.5).toFixed(2)} €</span>
-                  </div>
-                </div>
+
+            <div className="border-t p-6">
+              <div className="flex justify-between mb-4">
+                <span className="text-lg font-medium">Total</span>
+                <span className="text-2xl font-bold text-primary-600">{calculateTotal().toFixed(2)} €</span>
               </div>
               
-              <button className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-dark transition font-semibold">
-                Passer la commande
-              </button>
-              
-              <Link to="/menu" className="block text-center text-gray-500 hover:text-primary mt-4">
-                Continuer mes achats
-              </Link>
+              <div className="flex space-x-4">
+                <Button variant="gray" onClick={() => navigate('/menu')} className="flex-1">
+                  Continuer les achats
+                </Button>
+                <Button variant="success" onClick={handleOrder} className="flex-1">
+                  Commander
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Cart;
+export default Cart

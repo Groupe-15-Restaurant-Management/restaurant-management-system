@@ -1,257 +1,104 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
-import MainLayout from './components/Layout/MainLayout';
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './hooks/useAuth'
+import { ProtectedRoute } from './components/Routing/ProtectedRoute' // ✅ IMPORT AJOUTÉ ICI
 
-// Pages Auth
-import Login from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
+// Phase 1
+import Login from './pages/Auth/Login'
+import Tables from './pages/Serveur/Tables'
+import POS from './pages/Serveur/POS'
+import KitchenBoard from './pages/Cuisine/KitchenBoard'
+import Menu from './pages/Client/Menu'
+import Cart from './pages/Client/Cart'
+import Dashboard from './pages/Admin/Dashboard'
 
-// Pages Client
-import Menu from './pages/Client/Menu';
-import Cart from './pages/Client/Cart';
-import Reservation from './pages/Client/Reservation';
-import OrderHistory from './pages/Client/OrderHistory';
-import TrackOrder from './pages/Client/TrackOrder';
-
-// Pages Serveur (commentés car non créés)
-// import POS from './pages/Serveur/POS';
-// import Tables from './pages/Serveur/Tables';
-// import OrdersList from './pages/Serveur/OrdersList';
-
-// Pages Cuisine (commentés car non créés)
-// import KitchenBoard from './pages/Cuisine/KitchenBoard';
-// import PreparationHistory from './pages/Cuisine/PreparationHistory';
-
-// Pages Caissier (commentés car non créés)
-// import PaymentView from './pages/Caissier/PaymentView';
-// import PaymentHistory from './pages/Caissier/PaymentHistory';
-
-// Pages Livreur (commentés car non créés)
-// import DeliveryList from './pages/Livreur/DeliveryList';
-// import DeliveryHistory from './pages/Livreur/DeliveryHistory';
-
-// Pages Magasinier (commentés car non créés)
-// import StockManager from './pages/Magasinier/StockManager';
-// import StockAlert from './pages/Magasinier/StockAlert';
-
-// Pages Admin (commentés car non créés)
-// import Dashboard from './pages/Admin/Dashboard';
-// import UserManager from './pages/Admin/UserManager';
-// import Reports from './pages/Admin/Reports';
-// import Settings from './pages/Admin/Settings';
-
-// Composant de chargement
-const LoadingSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-      <p className="mt-4">Chargement...</p>
-    </div>
-  </div>
-);
-
-// Composant pour routes protégées avec vérification de rôle
-const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { isAuthenticated, loading, user } = useAuth();
-  
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-  
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    // Redirection selon le rôle
-    if (user?.role === 'client') return <Navigate to="/menu" replace />;
-    if (user?.role === 'serveur') return <Navigate to="/serveur/pos" replace />;
-    if (user?.role === 'cuisinier') return <Navigate to="/cuisine/board" replace />;
-    if (user?.role === 'caissier') return <Navigate to="/caissier/payments" replace />;
-    if (user?.role === 'livreur') return <Navigate to="/livreur/deliveries" replace />;
-    if (user?.role === 'magasinier') return <Navigate to="/magasinier/stock" replace />;
-    if (user?.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
-    return <Navigate to="/menu" replace />;
-  }
-  
-  return children;
-};
-
-// Composant de redirection selon le rôle
-const RoleBasedRedirect = () => {
-  const { user, loading, isAuthenticated } = useAuth();
-  
-  if (loading) return <LoadingSpinner />;
-  if (!isAuthenticated()) return <Navigate to="/login" replace />;
-  
-  switch (user?.role) {
-    case 'admin':
-      return <Navigate to="/admin/dashboard" replace />;
-    case 'client':
-      return <Navigate to="/menu" replace />;
-    case 'serveur':
-      return <Navigate to="/serveur/pos" replace />;
-    case 'cuisinier':
-      return <Navigate to="/cuisine/board" replace />;
-    case 'caissier':
-      return <Navigate to="/caissier/payments" replace />;
-    case 'livreur':
-      return <Navigate to="/livreur/deliveries" replace />;
-    case 'magasinier':
-      return <Navigate to="/magasinier/stock" replace />;
-    default:
-      return <Navigate to="/login" replace />;
-  }
-};
-
-function AppRoutes() {
-  const { loading } = useAuth();
-  
-  if (loading) return <LoadingSpinner />;
-  
-  return (
-    <Routes>
-      {/* Routes SANS layout (pages d'authentification) */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      
-      {/* Routes AVEC layout */}
-      <Route path="/" element={<MainLayout />}>
-        <Route index element={<RoleBasedRedirect />} />
-        
-        {/* Routes Client */}
-        <Route path="menu" element={
-          <ProtectedRoute allowedRoles={['client', 'admin', 'serveur']}>
-            <Menu />
-          </ProtectedRoute>
-        } />
-        <Route path="cart" element={
-          <ProtectedRoute allowedRoles={['client']}>
-            <Cart />
-          </ProtectedRoute>
-        } />
-        <Route path="reservation" element={
-          <ProtectedRoute allowedRoles={['client']}>
-            <Reservation />
-          </ProtectedRoute>
-        } />
-        <Route path="orders" element={
-          <ProtectedRoute allowedRoles={['client']}>
-            <OrderHistory />
-          </ProtectedRoute>
-        } />
-        <Route path="track-order/:id" element={
-          <ProtectedRoute allowedRoles={['client']}>
-            <TrackOrder />
-          </ProtectedRoute>
-        } />
-        
-        {/* Routes Serveur (commentées car non créées) */}
-        {/* <Route path="serveur/pos" element={
-          <ProtectedRoute allowedRoles={['serveur']}>
-            <POS />
-          </ProtectedRoute>
-        } />
-        <Route path="serveur/tables" element={
-          <ProtectedRoute allowedRoles={['serveur']}>
-            <Tables />
-          </ProtectedRoute>
-        } />
-        <Route path="serveur/orders" element={
-          <ProtectedRoute allowedRoles={['serveur']}>
-            <OrdersList />
-          </ProtectedRoute>
-        } /> */}
-        
-        {/* Routes Cuisine (commentées car non créées) */}
-        {/* <Route path="cuisine/board" element={
-          <ProtectedRoute allowedRoles={['cuisinier']}>
-            <KitchenBoard />
-          </ProtectedRoute>
-        } />
-        <Route path="cuisine/history" element={
-          <ProtectedRoute allowedRoles={['cuisinier']}>
-            <PreparationHistory />
-          </ProtectedRoute>
-        } /> */}
-        
-        {/* Routes Caissier (commentées car non créées) */}
-        {/* <Route path="caissier/payments" element={
-          <ProtectedRoute allowedRoles={['caissier']}>
-            <PaymentView />
-          </ProtectedRoute>
-        } />
-        <Route path="caissier/history" element={
-          <ProtectedRoute allowedRoles={['caissier']}>
-            <PaymentHistory />
-          </ProtectedRoute>
-        } /> */}
-        
-        {/* Routes Livreur (commentées car non créées) */}
-        {/* <Route path="livreur/deliveries" element={
-          <ProtectedRoute allowedRoles={['livreur']}>
-            <DeliveryList />
-          </ProtectedRoute>
-        } />
-        <Route path="livreur/history" element={
-          <ProtectedRoute allowedRoles={['livreur']}>
-            <DeliveryHistory />
-          </ProtectedRoute>
-        } /> */}
-        
-        {/* Routes Magasinier (commentées car non créées) */}
-        {/* <Route path="magasinier/stock" element={
-          <ProtectedRoute allowedRoles={['magasinier']}>
-            <StockManager />
-          </ProtectedRoute>
-        } />
-        <Route path="magasinier/alerts" element={
-          <ProtectedRoute allowedRoles={['magasinier']}>
-            <StockAlert />
-          </ProtectedRoute>
-        } /> */}
-        
-        {/* Routes Admin (commentées car non créées) */}
-        {/* <Route path="admin/dashboard" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="admin/users" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <UserManager />
-          </ProtectedRoute>
-        } />
-        <Route path="admin/reports" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <Reports />
-          </ProtectedRoute>
-        } />
-        <Route path="admin/settings" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <Settings />
-          </ProtectedRoute>
-        } /> */}
-      </Route>
-      
-      {/* Route 404 - Page non trouvée */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
+// Phase 2
+import Reservations from './pages/Serveur/Reservations'
+import PaymentView from './pages/Caissier/PaymentView'
+import StockManager from './pages/Magasinier/StockManager'
+import DeliveryList from './pages/Livreur/DeliveryList'
+import ReservationServeur from './pages/Serveur/Reservation'
+import ReservationForm from './pages/Serveur/ReservationForm'
 
 function App() {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    )
+  }
+
   return (
-    <Router>
-      <AuthProvider>
-        <CartProvider>
-          <AppRoutes />
-        </CartProvider>
-      </AuthProvider>
-    </Router>
-  );
+    <Routes>
+      {/* Public / Client */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/menu" element={<Menu />} />
+      <Route path="/cart" element={<Cart />} />
+      
+      {/* Serveur */}
+      <Route 
+        path="/serveur/tables" 
+        element={user && (user.role === 'serveur' || user.role === 'admin') ? <Tables /> : <Navigate to="/login" />} 
+      />
+      <Route 
+        path="/serveur/pos/:tableId" 
+        element={user && (user.role === 'serveur' || user.role === 'admin') ? <POS /> : <Navigate to="/login" />} 
+      />
+      <Route 
+        path="/serveur/reservations" 
+        element={user && (user.role === 'serveur' || user.role === 'admin') ? <Reservations /> : <Navigate to="/login" />} 
+      />
+      
+      {/* Cuisine */}
+      <Route 
+        path="/kitchen" 
+        element={user && (user.role === 'cuisinier' || user.role === 'admin') ? <KitchenBoard /> : <Navigate to="/login" />} 
+      />
+      
+      {/* Admin */}
+      <Route 
+        path="/admin/dashboard" 
+        element={user && user.role === 'admin' ? <Dashboard /> : <Navigate to="/login" />} 
+      />
+      
+      {/* Caissier */}
+      <Route 
+        path="/payments" 
+        element={user && (user.role === 'caissier' || user.role === 'admin') ? <PaymentView /> : <Navigate to="/login" />} 
+      />
+
+      {/* Magasinier */}
+      <Route 
+        path="/stock" 
+        element={user && (user.role === 'magasinier' || user.role === 'admin') ? <StockManager /> : <Navigate to="/login" />} 
+      />
+
+      {/* Livreur */}
+      <Route 
+        path="/deliveries" 
+        element={user && (user.role === 'livreur' || user.role === 'admin') ? <DeliveryList /> : <Navigate to="/login" />} 
+      />
+      
+      {/* Redirection par défaut */}
+      <Route path="/" element={
+        user ? (
+          user.role === 'admin' ? <Navigate to="/admin/dashboard" /> :
+          user.role === 'serveur' ? <Navigate to="/serveur/tables" /> :
+          user.role === 'cuisinier' ? <Navigate to="/kitchen" /> :
+          user.role === 'livreur' ? <Navigate to="/deliveries" /> :
+          user.role === 'caissier' ? <Navigate to="/payments" /> :
+          user.role === 'magasinier' ? <Navigate to="/stock" /> :
+          <Navigate to="/menu" />
+        ) : <Navigate to="/login" />
+      } />
+      
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
+  )
 }
 
-export default App;
+export default App
