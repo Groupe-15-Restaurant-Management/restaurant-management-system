@@ -12,7 +12,7 @@ class Facture(Base):
     paiement_id = Column(Integer, ForeignKey("paiement.id"), nullable=True)
     date_facture = Column(DateTime, default=func.now())
     montant_total = Column(Float, nullable=False)
-    chemin_fichier = Column(String(255))
+    chemin_fichier = Column(String(255), nullable=True)
 
     commande = relationship("Commande", back_populates="factures")
     paiement = relationship("Paiement", back_populates="facture")

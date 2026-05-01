@@ -29,6 +29,9 @@ class CommandeBase(BaseModel):
 
 
 class CommandeCreate(CommandeBase):
+    # ✅ Ajout de serveur_id (obligatoire dans le modèle)
+    serveur_id: int
+    client_id: Optional[int] = None  # Optionnel (client invité)
     lignes: List[LigneCommandeCreate]
 
 
@@ -40,6 +43,8 @@ class CommandeUpdate(BaseModel):
 class CommandeResponse(CommandeBase):
     id: int
     serveur_id: int
+    # ✅ Ajout de client_id (existe dans le modèle)
+    client_id: Optional[int] = None
     date_heure: datetime
     statut: CommandeStatus
     montant_total: float

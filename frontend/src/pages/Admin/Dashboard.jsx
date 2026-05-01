@@ -1,123 +1,203 @@
-import React, { useState, useEffect } from 'react'
-import Navbar from '../../components/Layout/Navbar'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js'
+import { Line, Doughnut } from 'react-chartjs-2'
+import dashboardService from '../../services/dashboardService'
 import StatCard from '../../components/Common/StatCard'
-import { Euro, ShoppingCart, Users, Star } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Package, ShoppingCart, Clock, Truck } from 'lucide-react'
+
+// Enregistrement des composants Chart.js
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend)
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    revenue: 0,
-    commandes: 0,
-    clients: 0,
-    noteMoyenne: 4.5
-  })
+  const [kpis, setKpis] = useState(null)
+  const [revenueData, setRevenueData] = useState([])
+  const [popularPlats, setPopularPlats] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // Memoization des données pour éviter les re-renders inutiles
+  const chartData = useMemo(() => {
+    if (!revenueData.length) return null
+    return {
+      labels: revenueData.map(d => new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })),
+      datasets: [{
+        label: 'Chiffre d\'affaires (€)',
+        data: revenueData.map(d => d.total),
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    }
+  }, [revenueData])
+
+  const popularChartData = useMemo(() => {
+    if (!popularPlats.length) return null
+    return {
+      labels: popularPlats.map(p => p.nom),
+      datasets: [{
+        data: popularPlats.map(p => p.ventes),
+        backgroundColor: [
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(249, 115, 22, 0.8)',
+          'rgba(168, 85, 247, 0.8)',
+          'rgba(236, 72, 153, 0.8)'
+        ]
+      }]
+    }
+  }, [popularPlats])
+
+  // Chargement des données avec useCallback pour la stabilité
+  const loadData = useCallback(async () => {
+    try {
+      const [kpisRes, revenueRes, popularRes] = await Promise.all([
+        dashboardService.getKPIs(),
+        dashboardService.getRevenueTrend(30),
+        dashboardService.getPopularPlats(5)
+      ])
+      setKpis(kpisRes)
+      setRevenueData(revenueRes)
+      setPopularPlats(popularRes)
+    } catch (error) {
+      console.error('Erreur chargement dashboard:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    // Simulation de données - à remplacer par un appel API
-    setStats({
-      revenue: 1234.56,
-      commandes: 42,
-      clients: 28,
-      noteMoyenne: 4.7
-    })
-  }, [])
+    loadData()
+  }, [loadData])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de Bord</h1>
-          <p className="mt-2 text-gray-600">Vue d'ensemble de l'activité du restaurant</p>
+      {/* Navbar simplifiée pour l'exemple */}
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Admin</h1>
         </div>
+      </nav>
 
-        {/* Cartes de statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="max-w-7xl mx-auto py-6 px-4">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <StatCard
-            title="Chiffre d'affaire"
-            value={`${stats.revenue.toFixed(2)} €`}
-            icon={Euro}
-            trend={12}
-            color="green"
-          />
-          <StatCard
-            title="Commandes"
-            value={stats.commandes}
+            title="Commandes aujourd'hui"
+            value={kpis?.commandes_aujourdhui || 0}
             icon={ShoppingCart}
-            trend={8}
             color="blue"
           />
           <StatCard
-            title="Clients"
-            value={stats.clients}
-            icon={Users}
-            trend={5}
-            color="primary"
+            title="CA du jour"
+            value={`${kpis?.ca_jour?.toFixed(2) || 0} €`}
+            icon={TrendingUp}
+            color="green"
           />
           <StatCard
-            title="Note moyenne"
-            value={stats.noteMoyenne}
-            icon={Star}
-            color="secondary"
+            title="Taux d'occupation"
+            value={`${kpis?.taux_occupation || 0}%`}
+            icon={Clock}
+            color="orange"
+          />
+          <StatCard
+            title="Stock critique"
+            value={kpis?.stock_critique || 0}
+            icon={AlertTriangle}
+            color="red"
+          />
+          <StatCard
+            title="Commandes en cours"
+            value={kpis?.commandes_en_cours || 0}
+            icon={Package}
+            color="blue"
+          />
+          <StatCard
+            title="Livraisons en retard"
+            value={kpis?.livraison_en_retard || 0}
+            icon={Truck}
+            color="red"
           />
         </div>
 
-        {/* Section principale : Commandes récentes + Top Produits */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* Commandes récentes */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Commandes récentes</h2>
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((order) => (
-                <div 
-                  key={order} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-gray-900">Commande #{1000 + order}</p>
-                    <p className="text-sm text-gray-600">Table {order} • Il y a {order * 15} min</p>
-                  </div>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    Terminée
-                  </span>
-                </div>
-              ))}
-            </div>
+        {/* Graphiques */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Évolution CA */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Évolution du CA (30 jours)</h3>
+            {chartData ? (
+              <Line 
+                data={chartData} 
+                options={{
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: { beginAtZero: true, ticks: { callback: v => `${v}€` } }
+                  }
+                }} 
+              />
+            ) : (
+              <p className="text-gray-500 text-center py-8">Aucune donnée disponible</p>
+            )}
           </div>
 
           {/* Top Produits */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Top Produits</h2>
-            <div className="space-y-3">
-              {[
-                { nom: 'Burger Gourmet', ventes: 45 },
-                { nom: 'Pizza Margherita', ventes: 38 },
-                { nom: 'Salade César', ventes: 32 },
-                { nom: 'Pâtes Carbonara', ventes: 28 },
-                { nom: 'Tiramisu', ventes: 25 },
-              ].map((plat, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="w-6 h-6 flex items-center justify-center bg-gray-200 text-gray-700 rounded-full text-sm font-medium">
-                      {idx + 1}
-                    </span>
-                    <span className="text-gray-900 font-medium">{plat.nom}</span>
-                  </div>
-                  <span className="font-medium text-gray-600">{plat.ventes} ventes</span>
-                </div>
-              ))}
-            </div>
+          <div className="bg-white rounded-xl shadow p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Plats les plus vendus</h3>
+            {popularChartData ? (
+              <div className="flex items-center justify-center">
+                <Doughnut 
+                  data={popularChartData} 
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">Aucune donnée disponible</p>
+            )}
           </div>
+        </div>
 
+        {/* Liste plats populaires (tableau) */}
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="p-4 border-b">
+            <h3 className="font-bold text-gray-900">Détail des ventes</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Plat</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-600">Ventes</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-600">Revenu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {popularPlats.map((plat, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{plat.nom}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{plat.ventes}</td>
+                    <td className="px-4 py-3 text-right font-medium text-green-600">{plat.revenu.toFixed(2)} €</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-export default Dashboard
+// React.memo pour éviter les re-renders inutiles
+export default React.memo(Dashboard)

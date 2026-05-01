@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -16,8 +16,6 @@ def get_kitchen_commandes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Récupère toutes les commandes en attente, en préparation ou prêtes"""
-    # Vérifier que l'utilisateur a le rôle 'cuisinier' ou 'admin'
     if current_user.role.nom not in ['cuisinier', 'admin']:
         raise HTTPException(status_code=403, detail="Accès réservé à la cuisine")
     
@@ -35,11 +33,10 @@ def get_kitchen_commandes(
 @router.put("/commandes/{commande_id}/status", response_model=CommandeResponse)
 def update_commande_status(
     commande_id: int,
-    statut: CommandeStatus,
+    statut: CommandeStatus = Body(..., embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Met à jour le statut d'une commande (cuisine)"""
     if current_user.role.nom not in ['cuisinier', 'admin']:
         raise HTTPException(status_code=403, detail="Accès réservé à la cuisine")
     

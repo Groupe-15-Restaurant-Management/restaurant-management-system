@@ -16,12 +16,12 @@ class ModePaiement(str, enum.Enum):
 
 class Paiement(Base):
     __tablename__ = "paiement"
-
+    
     id = Column(Integer, primary_key=True, index=True)
     commande_id = Column(Integer, ForeignKey("commande.id"), nullable=False)
     montant = Column(Float, nullable=False)
     mode_paiement = Column(Enum(ModePaiement), nullable=False)
-    reference_transaction = Column(String(100))
+    reference_transaction = Column(String(100), nullable=True)
     date_paiement = Column(DateTime, default=func.now())
     statut = Column(Enum(PaiementStatus), default=PaiementStatus.valide)
 

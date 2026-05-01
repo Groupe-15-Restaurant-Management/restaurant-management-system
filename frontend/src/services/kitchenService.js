@@ -7,7 +7,7 @@ const kitchenService = {
   },
 
   async updateStatus(id, statut) {
-    const response = await api.put(`/kitchen/commandes/${id}/status?statut=${statut}`)
+    const response = await api.put(`/kitchen/commandes/${id}/status`, { statut })
     return response.data
   }
 }

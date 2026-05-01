@@ -32,4 +32,4 @@ class MouvementStockResponse(BaseModel):
     date_mouvement: datetime
 
     class Config:
-        from_attributes = Trues
+        from_attributes = True

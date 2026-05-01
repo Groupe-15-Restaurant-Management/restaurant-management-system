@@ -19,4 +19,5 @@ class MouvementStock(Base):
     raison = Column(String(255))
     date_mouvement = Column(DateTime, default=func.now())
 
-    stock = relationship("Stock")
+    # ✅ back_populates cohérent
+    stock = relationship("Stock", back_populates="mouvements")

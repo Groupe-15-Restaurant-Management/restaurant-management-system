@@ -11,13 +11,18 @@ class ReservationBase(BaseModel):
     demandes_speciales: Optional[str] = None
 
 class ReservationCreate(ReservationBase):
-    pass
+    nom_client: str
+    telephone: str
+    email: Optional[str] = None
+    # ✅ Optionnel : serveur_id peut être ajouté automatiquement par le backend
+    serveur_id: Optional[int] = None
 
 class ReservationInvitedCreate(ReservationBase):
     """Pour les réservations sans compte utilisateur"""
-    nom_contact: str
+    nom_client: str
     telephone: str
     email: Optional[EmailStr] = None
+    # Pas de serveur_id, sera pris depuis JWT si connecté
 
 class ReservationUpdate(BaseModel):
     statut: Optional[ReservationStatus] = None
@@ -26,7 +31,8 @@ class ReservationUpdate(BaseModel):
 class ReservationResponse(ReservationBase):
     id: int
     client_id: Optional[int] = None
-    nom_contact: str
+    serveur_id: Optional[int] = None  # ✅ Ajout du serveur_id
+    nom_client: str
     telephone: str
     email: Optional[str] = None
     statut: ReservationStatus

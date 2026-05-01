@@ -6,6 +6,8 @@ from app.models.commande import Commande, CommandeStatus
 from datetime import datetime
 import random
 import string
+import os
+
 
 class PaymentService:
     @staticmethod
@@ -21,19 +23,19 @@ class PaymentService:
             montant=montant,
             mode_paiement=mode,
             reference_transaction="".join(random.choices(string.ascii_uppercase + string.digits, k=10)),
-            date_paiement=datetime.now()
+            date_paiement=datetime.now(),
+            statut=PaiementStatus.valide
         )
         db.add(paiement)
         db.flush()
 
-        # Génération facture
         facture_numero = f"FAC-{datetime.now().strftime('%Y%m%d')}-{paiement.id:04d}"
         facture = Facture(
             numero=facture_numero,
             commande_id=commande_id,
             paiement_id=paiement.id,
             montant_total=montant,
-            chemin_fichier=f"/invoices/{facture_numero}.pdf" # Stub
+            chemin_fichier=f"/invoices/{facture_numero}.pdf"
         )
         db.add(facture)
         
@@ -41,3 +43,13 @@ class PaymentService:
         db.commit()
         
         return {"paiement": paiement, "facture": facture}
+
+    @staticmethod
+    def generate_invoice_pdf(commande_id: int, facture_numero: str) -> str:
+        chemin = f"/tmp/invoice_{facture_numero}.pdf"
+        os.makedirs("/tmp", exist_ok=True)
+        with open(chemin, "w") as f:
+            f.write(f"Facture {facture_numero}\n")
+            f.write(f"Commande #{commande_id}\n")
+            f.write("Merci de votre visite !")
+        return chemin

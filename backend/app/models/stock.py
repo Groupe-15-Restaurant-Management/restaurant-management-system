@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -11,3 +12,6 @@ class Stock(Base):
     unite = Column(String(20), default="kg")
     seuil_min = Column(Float, nullable=False, default=0.0)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # ✅ Ajout de la relation inverse
+    mouvements = relationship("MouvementStock", back_populates="stock", cascade="all, delete-orphan")
