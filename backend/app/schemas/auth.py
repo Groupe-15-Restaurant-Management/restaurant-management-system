@@ -10,7 +10,10 @@ class LoginRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user: Optional[dict] = None
+    user_id: int
+    email: str
+    role: str
+    nom: Optional[str] = None
 
 
 class TokenData(BaseModel):

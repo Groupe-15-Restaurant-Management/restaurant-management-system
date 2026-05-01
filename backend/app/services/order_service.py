@@ -3,7 +3,8 @@ from fastapi import HTTPException, status
 from app.models.commande import Commande, LigneCommande, CommandeStatus
 from app.models.table import Table, TableStatus
 from app.models.plat import Plat
-from typing import List
+from app.models.livraison import Livraison, LivraisonStatus
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -14,9 +15,10 @@ class OrderService:
         table_id: int,
         serveur_id: int,
         lignes: List[dict],
+        client_id: Optional[int] = None,
+        adresse_livraison: Optional[str] = None,
         notes: str = None
     ) -> Commande:
-        # Vérifier que la table existe et est libre
         table = db.query(Table).filter(Table.id == table_id).first()
         if not table:
             raise HTTPException(status_code=404, detail="Table not found")
@@ -27,7 +29,6 @@ class OrderService:
                 detail=f"Table not available. Current status: {table.statut}"
             )
         
-        # Calculer le montant total et vérifier les plats
         montant_total = 0.0
         plat_ids = [ligne["plat_id"] for ligne in lignes]
         plats = db.query(Plat).filter(Plat.id.in_(plat_ids)).all()
@@ -42,10 +43,10 @@ class OrderService:
             
             montant_total += plat.prix * ligne["quantite"]
         
-        # Créer la commande
         commande = Commande(
             table_id=table_id,
             serveur_id=serveur_id,
+            client_id=client_id,
             statut=CommandeStatus.en_attente,
             montant_total=montant_total,
             notes=notes,
@@ -54,7 +55,6 @@ class OrderService:
         db.add(commande)
         db.flush()
         
-        # Créer les lignes de commande
         for ligne in lignes:
             plat = plat_dict[ligne["plat_id"]]
             ligne_commande = LigneCommande(
@@ -66,7 +66,16 @@ class OrderService:
             )
             db.add(ligne_commande)
         
-        # Mettre à jour le statut de la table
+        if adresse_livraison:
+            livraison = Livraison(
+                commande_id=commande.id,
+                adresse=adresse_livraison,
+                date_livraison_prevue=datetime.now() + timedelta(minutes=45),
+                frais=0.0,
+                statut=LivraisonStatus.en_attente
+            )
+            db.add(livraison)
+        
         table.statut = TableStatus.occupee
         
         db.commit()
@@ -86,7 +95,6 @@ class OrderService:
         
         commande.statut = statut
         
-        # Si la commande est terminée, libérer la table
         if statut == CommandeStatus.terminee:
             table = db.query(Table).filter(Table.id == commande.table_id).first()
             if table:

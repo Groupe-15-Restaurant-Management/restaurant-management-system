@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.commande import Commande, CommandeStatus
 from app.schemas.commande import CommandeResponse, CommandeCreate, CommandeUpdate
 from app.services.order_service import OrderService
+from app.services.stock_service import StockService
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/commandes", tags=["Commandes"])
@@ -20,6 +21,7 @@ def create_commande(
         db=db,
         table_id=commande.table_id,
         serveur_id=current_user.id,
+        client_id=commande.client_id,
         lignes=[ligne.model_dump() for ligne in commande.lignes],
         notes=commande.notes
     )
@@ -30,7 +32,6 @@ def get_commandes(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    # Serveur voit ses propres commandes, admin voit tout
     if current_user.role.nom == "admin":
         commandes = db.query(Commande).order_by(Commande.date_heure.desc()).limit(50).all()
     else:
@@ -51,7 +52,6 @@ def get_commande(
     if not commande:
         raise HTTPException(status_code=404, detail="Commande not found")
     
-    # Vérifier les permissions
     if current_user.role.nom != "admin" and commande.serveur_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this order")
     
@@ -69,7 +69,6 @@ def update_commande(
     if not commande:
         raise HTTPException(status_code=404, detail="Commande not found")
     
-    # Vérifier les permissions
     if current_user.role.nom != "admin" and commande.serveur_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this order")
     

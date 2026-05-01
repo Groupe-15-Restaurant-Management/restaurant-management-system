@@ -17,7 +17,6 @@ import Reservations from './pages/Serveur/Reservations'
 import PaymentView from './pages/Caissier/PaymentView'
 import StockManager from './pages/Magasinier/StockManager'
 import DeliveryList from './pages/Livreur/DeliveryList'
-import ReservationServeur from './pages/Serveur/Reservation'
 import ReservationForm from './pages/Serveur/ReservationForm'
 
 function App() {

@@ -14,39 +14,33 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ):
     token = credentials.credentials
-    print(f"=== [DEPENDENCIES] Token reçu: {token[:50]}...")
-    print(f"=== [DEPENDENCIES] Longueur token: {len(token)}")
-    
     payload = decode_access_token(token)
-    print(f"=== [DEPENDENCIES] Payload après décodage: {payload}")
     
     if payload is None:
-        print(f"=== [DEPENDENCIES] ❌ Payload est None → 401")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # sub est maintenant une string, convertissons-le en int
     user_id_str: str = payload.get("sub")
-    print(f"=== [DEPENDENCIES] user_id_str extrait: {user_id_str}")
-
     if user_id_str is None:
-        print(f"=== [DEPENDENCIES] ❌ user_id_str est None → 401")
-        raise HTTPException(...)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: missing user id",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    user_id = int(user_id_str)  # ← Convertir string en int
-    print(f"=== [DEPENDENCIES] user_id converti: {user_id}")
-
+    user_id = int(user_id_str)
     user = db.query(User).filter(User.id == user_id).first()
-    print(f"=== [DEPENDENCIES] Utilisateur trouvé: {user.nom if user else 'None'}")
     
     if user is None:
-        print(f"=== [DEPENDENCIES] ❌ Utilisateur non trouvé → 401")
-        raise HTTPException(...)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
-    print(f"=== [DEPENDENCIES] ✅ Authentification réussie pour {user.nom}")
     return user
 
 

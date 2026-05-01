@@ -13,9 +13,6 @@ class Role(Base):
     users = relationship("User", back_populates="role")
 
 
-
-# Dans backend/app/models/user.py
-
 class User(Base):
     __tablename__ = "user"
 
@@ -25,11 +22,11 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     telephone = Column(String(20))
     role_id = Column(Integer, ForeignKey("role.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())  # ✅ sans timezone pour cohérence
 
     role = relationship("Role", back_populates="users")
     
-    # ✅ Relations avec Reservation (avec foreign_keys si nécessaire)
+    # Relations avec Reservation
     reservations_as_client = relationship(
         "Reservation", 
         foreign_keys="Reservation.client_id", 
@@ -41,5 +38,22 @@ class User(Base):
         back_populates="serveur"
     )
     
-    # Autres relations existantes...
-    commandes_serveur = relationship("Commande", foreign_keys="Commande.serveur_id", back_populates="serveur")
+    # Relations avec Commande
+    commandes_serveur = relationship(
+        "Commande", 
+        foreign_keys="Commande.serveur_id", 
+        back_populates="serveur"
+    )
+    
+    commandes_client = relationship(
+        "Commande", 
+        foreign_keys="Commande.client_id", 
+        back_populates="client"
+    )
+    
+    # ✅ Correction : foreign_keys explicite
+    livraisons = relationship(
+        "Livraison", 
+        foreign_keys="Livraison.livreur_id",
+        back_populates="livreur"
+    )

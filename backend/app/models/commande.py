@@ -4,7 +4,6 @@ from sqlalchemy.sql import func
 from app.database import Base
 import enum
 
-
 class CommandeStatus(str, enum.Enum):
     en_attente = "en_attente"
     en_preparation = "en_preparation"
@@ -12,10 +11,9 @@ class CommandeStatus(str, enum.Enum):
     terminee = "terminee"
     annulee = "annulee"
 
-
 class Commande(Base):
     __tablename__ = "commande"
-
+    
     id = Column(Integer, primary_key=True, index=True)
     table_id = Column(Integer, ForeignKey("table.id"), nullable=False)
     serveur_id = Column(Integer, ForeignKey("user.id"), nullable=False)
@@ -26,13 +24,20 @@ class Commande(Base):
     notes = Column(Text)
 
     table = relationship("Table", back_populates="commandes")
+    
+    # ✅ foreign_keys explicites
     serveur = relationship("User", foreign_keys=[serveur_id], back_populates="commandes_serveur")
+    client = relationship("User", foreign_keys=[client_id], back_populates="commandes_client")
+    
     lignes = relationship("LigneCommande", back_populates="commande", cascade="all, delete-orphan")
+    paiements = relationship("Paiement", back_populates="commande", cascade="all, delete-orphan")
+    factures = relationship("Facture", back_populates="commande", cascade="all, delete-orphan")
+    livraisons = relationship("Livraison", back_populates="commande", cascade="all, delete-orphan")
 
 
 class LigneCommande(Base):
     __tablename__ = "ligne_commande"
-
+    
     id = Column(Integer, primary_key=True, index=True)
     commande_id = Column(Integer, ForeignKey("commande.id"), nullable=False)
     plat_id = Column(Integer, ForeignKey("plat.id"), nullable=False)

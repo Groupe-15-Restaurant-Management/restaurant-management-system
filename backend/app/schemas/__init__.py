@@ -11,6 +11,18 @@ from app.schemas.commande import (
     CommandeResponse,
     CommandeUpdate,
 )
+from app.schemas.reservation import (
+    ReservationBase,
+    ReservationCreate,
+    ReservationInvitedCreate,
+    ReservationResponse,
+    ReservationUpdate,
+)
+from app.schemas.paiement import PaiementCreate, PaiementResponse
+from app.schemas.facture import FactureResponse
+from app.schemas.stock import StockCreate, StockUpdate, StockResponse, MouvementStockResponse
+from app.schemas.livraison import LivraisonCreate, LivraisonUpdate, LivraisonResponse
+from app.schemas.rapport import RapportGenerateRequest, RapportResponse, DashboardKPIResponse, RevenueTrendItem, PopularPlatItem
 
 __all__ = [
     "Token",
@@ -35,4 +47,24 @@ __all__ = [
     "CommandeCreate",
     "CommandeResponse",
     "CommandeUpdate",
+    "ReservationBase",
+    "ReservationCreate",
+    "ReservationInvitedCreate",
+    "ReservationResponse",
+    "ReservationUpdate",
+    "PaiementCreate",
+    "PaiementResponse",
+    "FactureResponse",
+    "StockCreate",
+    "StockUpdate",
+    "StockResponse",
+    "MouvementStockResponse",
+    "LivraisonCreate",
+    "LivraisonUpdate",
+    "LivraisonResponse",
+    "RapportGenerateRequest",
+    "RapportResponse",
+    "DashboardKPIResponse",
+    "RevenueTrendItem",
+    "PopularPlatItem"
 ]

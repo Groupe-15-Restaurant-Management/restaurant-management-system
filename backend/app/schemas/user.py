@@ -11,7 +11,8 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role_id: int
+    role_id: Optional[int] = None  # Optionnel si on utilise role_nom
+    role_nom: Optional[str] = None  # Prioritaire sur role_id si fourni
 
 
 class UserUpdate(BaseModel):
@@ -19,11 +20,13 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     telephone: Optional[str] = None
     password: Optional[str] = None
+    role_id: Optional[int] = None
 
 
 class UserResponse(UserBase):
     id: int
     role_id: int
+    role_nom: Optional[str] = None  # Pour faciliter l'affichage
     created_at: datetime
 
     class Config:

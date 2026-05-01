@@ -2,17 +2,23 @@ import React, { useState, useEffect } from 'react'
 import Navbar from '../../components/Layout/Navbar'
 import Button from '../../components/Common/Button'
 import DataTable from '../../components/Common/DataTable'
-import { Calendar, Clock, Users } from 'lucide-react'
+import ReservationForm from './ReservationForm'
+import { Calendar, Clock, Users, X } from 'lucide-react'
 
 const Reservations = () => {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false) // ✅ État pour contrôler le modal
 
   useEffect(() => {
     loadReservations()
   }, [])
 
   const loadReservations = async () => {
+    // TODO: Remplacer par appel API réel
+    // const response = await reservationService.getReservations()
+    // setReservations(response.data)
+    
     // Simulation de données
     setReservations([
       {
@@ -49,6 +55,17 @@ const Reservations = () => {
     setLoading(false)
   }
 
+  // ✅ Callback appelé après succès de la réservation
+  const handleReservationSuccess = () => {
+    setShowForm(false)      // Ferme le modal
+    loadReservations()      // Rafraîchit la liste
+  }
+
+  // ✅ Callback appelé si l'utilisateur annule
+  const handleReservationCancel = () => {
+    setShowForm(false)
+  }
+
   const columns = [
     { header: 'Table', accessor: row => `Table ${row.table.numero}` },
     { header: 'Client', accessor: row => row.nom_client },
@@ -81,12 +98,15 @@ const Reservations = () => {
             <h1 className="text-3xl font-bold text-gray-900">Réservations</h1>
             <p className="mt-2 text-gray-600">Gérez les réservations de tables</p>
           </div>
-          <Button variant="primary">
+          
+          {/* ✅ Bouton qui ouvre le modal */}
+          <Button variant="primary" onClick={() => setShowForm(true)}>
             <Calendar className="h-5 w-5 mr-2" />
             Nouvelle réservation
           </Button>
         </div>
 
+        {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -125,11 +145,51 @@ const Reservations = () => {
           </div>
         </div>
 
+        {/* Tableau des réservations */}
         <DataTable
           columns={columns}
           data={reservations}
           emptyMessage="Aucune réservation"
         />
+
+        {/* ✅ MODAL / OVERLAY pour ReservationForm */}
+        {showForm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Overlay sombre (clique pour fermer) */}
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" 
+              onClick={handleReservationCancel}
+            />
+            
+            {/* Panel centré */}
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full p-6">
+                
+                {/* Header avec bouton fermer */}
+                <div className="flex justify-between items-center mb-4 pb-3 border-b">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary-600" />
+                    Nouvelle réservation
+                  </h2>
+                  <button 
+                    onClick={handleReservationCancel}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                {/* Formulaire avec callbacks */}
+                <ReservationForm 
+                  onSuccess={handleReservationSuccess}
+                  onCancel={handleReservationCancel}
+                />
+                
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
